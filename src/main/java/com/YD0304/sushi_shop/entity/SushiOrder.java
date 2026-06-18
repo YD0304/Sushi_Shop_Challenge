@@ -23,9 +23,6 @@ public class SushiOrder {
     @Column(name = "created_at", nullable = false)
     private Timestamp createdAt = Timestamp.from(Instant.now());
 
-    @Column(name = "remaining_time", nullable = true)
-    private Long remainingTime;
-
     public SushiOrder() {
     }
 
@@ -67,12 +64,5 @@ public class SushiOrder {
         this.createdAt = createdAt;
     }
 
-    public Long getRemainingTime() {
-        return remainingTime;
-    }
-
-    public void setRemainingTime(Long remainingTime) {
-        this.remainingTime = remainingTime;
-    }
-
 }
+

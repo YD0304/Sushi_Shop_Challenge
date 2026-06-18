@@ -10,8 +10,7 @@ CREATE TABLE sushi_order (
     id INT AUTO_INCREMENT PRIMARY KEY,
     status_id INT NOT NULL,
     sushi_id INT NOT NULL,
-    created_at TIMESTAMP NOT NULL default CURRENT_TIMESTAMP,
-    remaining_time BIGINT DEFAULT NULL
+    created_at TIMESTAMP NOT NULL default CURRENT_TIMESTAMP
 );
 
 DROP TABLE IF EXISTS status;

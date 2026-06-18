@@ -3,11 +3,13 @@ package com.YD0304.sushi_shop.controller;
 
 import com.YD0304.sushi_shop.dto.OrderResponse;
 import com.YD0304.sushi_shop.dto.OrderStatus;
+import com.YD0304.sushi_shop.dto.OrderStatusDto;
 import com.YD0304.sushi_shop.dto.OrderSummary;
 import com.YD0304.sushi_shop.entity.SushiOrder;
 import com.YD0304.sushi_shop.repository.SushiRepository;
 import com.YD0304.sushi_shop.service.SushiService;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
@@ -86,6 +88,11 @@ public class SushiController {
       } catch (Exception var5) {
          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new OrderStatus(500, "Internal error"));
       }
+   }
+
+   @GetMapping("/api/orders/status")
+   public ResponseEntity<Map<String, java.util.List<OrderStatusDto>>> getOrdersByStatus() {
+      return ResponseEntity.ok(sushiService.getOrdersByStatus());
    }
 
    @GetMapping({"/test"})

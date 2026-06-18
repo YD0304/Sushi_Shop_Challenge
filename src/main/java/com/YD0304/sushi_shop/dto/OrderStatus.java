@@ -13,11 +13,4 @@ public class OrderStatus {
     public String getMsg() { return msg; }
 
 
-
-
-
-
-
-
-
 }

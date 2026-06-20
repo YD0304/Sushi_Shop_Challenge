@@ -3,6 +3,7 @@ CREATE TABLE sushi (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(30),
     time_to_make INT DEFAULT NULL
+    
 );
 
 DROP TABLE IF EXISTS sushi_order;

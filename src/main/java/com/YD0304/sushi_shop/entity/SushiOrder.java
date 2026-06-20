@@ -3,6 +3,9 @@ package com.YD0304.sushi_shop.entity;
 import jakarta.persistence.*;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "sushi_order")
@@ -20,8 +23,9 @@ public class SushiOrder {
     @JoinColumn(name = "sushi_id", nullable = false)
     private Sushi sushi;
 
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false)
-    private Timestamp createdAt = Timestamp.from(Instant.now());
+    private LocalDateTime createdAt;
 
     public SushiOrder() {
     }
@@ -29,7 +33,7 @@ public class SushiOrder {
     public SushiOrder(Status status, Sushi sushi) {
         this.status = status;
         this.sushi = sushi;
-        this.createdAt = Timestamp.from(Instant.now());
+        this.createdAt = LocalDateTime.now();
     }
 
     public Integer getId() {
@@ -56,13 +60,12 @@ public class SushiOrder {
         this.sushi = sushi;
     }
 
-    public Timestamp getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Timestamp createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
 }
-

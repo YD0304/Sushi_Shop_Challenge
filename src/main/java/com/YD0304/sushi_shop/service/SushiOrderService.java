@@ -98,32 +98,55 @@ public class SushiOrderService {
     }
 
     @Transactional
-    public void cancelSushiOrder(Integer orderId) {
-        orderScheduler.cancel(orderId);
-        changeSushiOrderStatus(orderId, "cancelled");
-        analyticsService.cancelled(orderId);
+public void cancelSushiOrder(Integer orderId) {
+    SushiOrder order = sushiOrderRepository.findById(orderId)
+            .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+    String status = order.getStatus().getName();
+    if ("cancelled".equals(status) || "finished".equals(status)) {
+        throw new IllegalStateException("Cannot cancel an order with status: " + status);
     }
 
-    @Transactional
-    public void pauseSushiOrder(Integer orderId) {
-        orderScheduler.pause(orderId);
-        changeSushiOrderStatus(orderId, "paused");
-        analyticsService.paused(orderId);
+    orderScheduler.cancel(orderId);
+    changeSushiOrderStatus(orderId, "cancelled");
+    analyticsService.cancelled(orderId);
+}
+
+@Transactional
+public void pauseSushiOrder(Integer orderId) {
+    SushiOrder order = sushiOrderRepository.findById(orderId)
+            .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+    String status = order.getStatus().getName();
+    if (!"in-progress".equals(status)) {
+        throw new IllegalStateException("Can only pause an in-progress order, current status: " + status);
     }
 
-    @Transactional
-    public void resumeSushiOrder(int orderId) {
-        changeSushiOrderStatus(orderId, "created");
-        int highPriority = 0;
-        orderScheduler.enqueue(orderId, highPriority, this);
+    orderScheduler.pause(orderId);
+    changeSushiOrderStatus(orderId, "paused");
+    analyticsService.paused(orderId);
+}
 
+@Transactional
+public void resumeSushiOrder(int orderId) {
+    SushiOrder order = sushiOrderRepository.findById(orderId)
+            .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+    String status = order.getStatus().getName();
+    if (!"paused".equals(status)) {
+        throw new IllegalStateException("Can only resume a paused order, current status: " + status);
     }
+
+    changeSushiOrderStatus(orderId, "in-progress"); // resume means it's active again
+    int highPriority = 0;
+    orderScheduler.enqueue(orderId, highPriority, this);
+}
 
     public Map<String, List<OrderStatusResponse>> getOrdersGroupedByStatus() {
         List<SushiOrder> allOrders = sushiOrderRepository.findAll();
         return allOrders.stream()
             .collect(Collectors.groupingBy(
-                order -> order.getStatus().getName(),
+                order -> updateStatusName(order.getStatus().getName()),
                 Collectors.mapping(order -> {
                     OrderStatusResponse dto = new OrderStatusResponse();
                     dto.setOrderId(order.getId());
@@ -146,6 +169,7 @@ public class SushiOrderService {
     }
 
     private boolean canProcess(SushiOrder order) {
-        return "created".equals(order.getStatus().getName());
-    }
+    String s = order.getStatus().getName();
+    return "created".equals(s) || "in-progress".equals(s);
+}
 }

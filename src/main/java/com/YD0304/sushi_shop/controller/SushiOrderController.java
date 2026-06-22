@@ -1,9 +1,7 @@
-// Source code is decompiled from a .class file using FernFlower decompiler (from Intellij IDEA).
 package com.YD0304.sushi_shop.controller;
 
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,15 +19,13 @@ import com.YD0304.sushi_shop.dto.OrderStatusResponse;
 import com.YD0304.sushi_shop.dto.OrderSummary;
 import com.YD0304.sushi_shop.dto.StatusResponse;
 import com.YD0304.sushi_shop.entity.SushiOrder;
-import com.YD0304.sushi_shop.repository.SushiRepository;
 import com.YD0304.sushi_shop.service.SushiOrderService;
-import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 @RestController
 public class SushiOrderController {
    private final SushiOrderService sushiService;
 
-   public SushiOrderController(SushiOrderService sushiService, SushiRepository sushiRepository, ParameterNamesModule parameterNamesModule) {
+   public SushiOrderController(SushiOrderService sushiService) {
       this.sushiService = sushiService;
    }
 
@@ -40,9 +36,9 @@ public class SushiOrderController {
          SushiOrder savedOrder = this.sushiService.createSushiOrder(sushiName);
          OrderSummary summary = new OrderSummary(savedOrder);
          return ResponseEntity.status(HttpStatus.CREATED).body(new OrderResponse(summary, 0, "Order created"));
-      } catch (NoSuchElementException var5) {
+      } catch (IllegalArgumentException e) {
          return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new OrderResponse((OrderSummary)null, 404, "Sushi not found"));
-      } catch (Exception var6) {
+      } catch (Exception e) {
          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new OrderResponse((OrderSummary)null, 500, "Internal error"));
       }
    }
@@ -52,11 +48,11 @@ public class SushiOrderController {
       try {
          sushiService.cancelSushiOrder(orderId);
          return ResponseEntity.ok(new StatusResponse(0, "Order cancelled"));
-      } catch (NoSuchElementException var3) {
+      } catch (IllegalArgumentException e) {
          return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new StatusResponse(404, "Order not found"));
       } catch (IllegalStateException e) {
          return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new StatusResponse(400, e.getMessage()));
-      } catch (Exception var5) {
+      } catch (Exception e) {
          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new StatusResponse(500, "Internal error"));
       }
    }
@@ -66,11 +62,11 @@ public class SushiOrderController {
       try {
          sushiService.pauseSushiOrder(orderId);
          return ResponseEntity.ok(new StatusResponse(0, "Order paused"));
-      } catch (NoSuchElementException var3) {
+      } catch (IllegalArgumentException e) {
          return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new StatusResponse(404, "Order not found"));
       } catch (IllegalStateException e) {
          return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new StatusResponse(400, e.getMessage()));
-      } catch (Exception var5) {
+      } catch (Exception e) {
          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new StatusResponse(500, "Internal error"));
       }
    }
@@ -80,11 +76,11 @@ public class SushiOrderController {
       try {
          sushiService.resumeSushiOrder(orderId);
          return ResponseEntity.ok(new StatusResponse(0, "Order resumed"));
-      } catch (NoSuchElementException var3) {
+      } catch (IllegalArgumentException e) {
          return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new StatusResponse(404, "Order not found"));
       } catch (IllegalStateException e) {
          return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new StatusResponse(400, e.getMessage()));
-      } catch (Exception var5) {
+      } catch (Exception e) {
          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new StatusResponse(500, "Internal error"));
       }
    }

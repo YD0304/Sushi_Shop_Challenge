@@ -17,86 +17,64 @@ import com.YD0304.sushi_shop.dto.AnalyticsResponse;
 import com.YD0304.sushi_shop.dto.OrderResponse;
 import com.YD0304.sushi_shop.dto.OrderStatusResponse;
 import com.YD0304.sushi_shop.dto.OrderSummary;
-import com.YD0304.sushi_shop.dto.StatusResponse;
+import com.YD0304.sushi_shop.dto.CodeResponse;
 import com.YD0304.sushi_shop.entity.SushiOrder;
 import com.YD0304.sushi_shop.service.SushiOrderService;
 
 @RestController
 public class SushiOrderController {
-   private final SushiOrderService sushiService;
 
-   public SushiOrderController(SushiOrderService sushiService) {
-      this.sushiService = sushiService;
-   }
+    private final SushiOrderService sushiService;
 
-   @PostMapping({"/api/orders"})
-   public ResponseEntity<OrderResponse> createOrder(@RequestBody Map<String, String> payload) {
-      try {
-         String sushiName = (String)payload.get("sushi_name");
-         SushiOrder savedOrder = this.sushiService.createSushiOrder(sushiName);
-         OrderSummary summary = new OrderSummary(savedOrder);
-         return ResponseEntity.status(HttpStatus.CREATED).body(new OrderResponse(summary, 0, "Order created"));
-      } catch (IllegalArgumentException e) {
-         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new OrderResponse((OrderSummary)null, 404, "Sushi not found"));
-      } catch (Exception e) {
-         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new OrderResponse((OrderSummary)null, 500, "Internal error"));
-      }
-   }
-
-   @DeleteMapping({"/api/orders/{orderId}"})
-   public ResponseEntity<StatusResponse> cancelOrder(@PathVariable Integer orderId) {
-      try {
-         sushiService.cancelSushiOrder(orderId);
-         return ResponseEntity.ok(new StatusResponse(0, "Order cancelled"));
-      } catch (IllegalArgumentException e) {
-         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new StatusResponse(404, "Order not found"));
-      } catch (IllegalStateException e) {
-         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new StatusResponse(400, e.getMessage()));
-      } catch (Exception e) {
-         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new StatusResponse(500, "Internal error"));
-      }
-   }
-
-   @PutMapping({"/api/orders/{orderId}/pause"})
-   public ResponseEntity<StatusResponse> pauseOrder(@PathVariable Integer orderId) {
-      try {
-         sushiService.pauseSushiOrder(orderId);
-         return ResponseEntity.ok(new StatusResponse(0, "Order paused"));
-      } catch (IllegalArgumentException e) {
-         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new StatusResponse(404, "Order not found"));
-      } catch (IllegalStateException e) {
-         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new StatusResponse(400, e.getMessage()));
-      } catch (Exception e) {
-         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new StatusResponse(500, "Internal error"));
-      }
-   }
-
-   @PutMapping({"/api/orders/{orderId}/resume"})
-   public ResponseEntity<StatusResponse> resumeOrder(@PathVariable Integer orderId) {
-      try {
-         sushiService.resumeSushiOrder(orderId);
-         return ResponseEntity.ok(new StatusResponse(0, "Order resumed"));
-      } catch (IllegalArgumentException e) {
-         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new StatusResponse(404, "Order not found"));
-      } catch (IllegalStateException e) {
-         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new StatusResponse(400, e.getMessage()));
-      } catch (Exception e) {
-         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new StatusResponse(500, "Internal error"));
-      }
-   }
-
-   @GetMapping("/api/orders/status")
-    public Map<String, List<OrderStatusResponse>> getOrdersByStatus() {
-        return sushiService.getOrdersGroupedByStatus();
+    public SushiOrderController(SushiOrderService sushiService) {
+        this.sushiService = sushiService;
     }
 
-   @GetMapping("/api/orders/analytics")
-   public ResponseEntity<AnalyticsResponse> getAnalytics() {
-      return ResponseEntity.ok(sushiService.getAnalytics());
-   }
+    @PostMapping("/api/orders")
+    public ResponseEntity<OrderResponse> createOrder(@RequestBody Map<String, String> payload) {
+        String sushiName = payload.getOrDefault("sushi_name", null);
+        if (sushiName == null || sushiName.isBlank()) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(new OrderResponse(null, 400, "sushi_name is required"));
+        }
+        SushiOrder savedOrder = sushiService.createSushiOrder(sushiName);
+        OrderSummary summary = new OrderSummary(savedOrder);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(new OrderResponse(summary, 0, "Order created"));
+    }
 
-   @GetMapping({"/test"})
-   public String test() {
-      return "TEST!";
-   }
+    @DeleteMapping("/api/orders/{orderId}")
+    public ResponseEntity<CodeResponse> cancelOrder(@PathVariable Integer orderId) {
+        sushiService.cancelSushiOrder(orderId);
+        return ResponseEntity.ok(new CodeResponse(0, "Order cancelled"));
+    }
+
+    @PutMapping("/api/orders/{orderId}/pause")
+    public ResponseEntity<CodeResponse> pauseOrder(@PathVariable Integer orderId) {
+        sushiService.pauseSushiOrder(orderId);
+        return ResponseEntity.ok(new CodeResponse(0, "Order paused"));
+    }
+
+    @PutMapping("/api/orders/{orderId}/resume")
+    public ResponseEntity<CodeResponse> resumeOrder(@PathVariable Integer orderId) {
+        sushiService.resumeSushiOrder(orderId);
+        return ResponseEntity.ok(new CodeResponse(0, "Order resumed"));
+    }
+
+    @GetMapping("/api/orders/status")
+    public ResponseEntity<Map<String, List<OrderStatusResponse>>> getOrdersByStatus() {
+        return ResponseEntity.ok(sushiService.getOrdersGroupedByStatus());
+    }
+
+    @GetMapping("/api/orders/analytics")
+    public ResponseEntity<AnalyticsResponse> getAnalytics() {
+        return ResponseEntity.ok(sushiService.getAnalytics());
+    }
+
+    @GetMapping("/test")
+    public String test() {
+        return "TEST!";
+    }
 }

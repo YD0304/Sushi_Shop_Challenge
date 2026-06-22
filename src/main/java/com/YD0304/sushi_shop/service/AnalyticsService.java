@@ -8,26 +8,26 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.YD0304.sushi_shop.dto.AnalyticsResponse;
 
-
 @Service
 public class AnalyticsService {
-
     private static final int CHEF_COUNT = 3;
 
-    private final AtomicLong totalWait = new AtomicLong();
-    private final AtomicLong totalMake = new AtomicLong();
+    private final AtomicLong totalWaitMillis = new AtomicLong();
+    private final AtomicLong totalMakeMillis = new AtomicLong();
     private final AtomicLong totalOrdersStarted = new AtomicLong();
     private final AtomicLong totalOrdersFinished = new AtomicLong();
 
-    private final ConcurrentHashMap<Integer, OrderAnalytics> orders = new ConcurrentHashMap<Integer, OrderAnalytics>();
-    private final ConcurrentHashMap<Integer, Instant> orderCreatedAt = new ConcurrentHashMap<Integer, Instant>();
-    private final ConcurrentHashMap<Integer, Boolean> orderStarted = new ConcurrentHashMap<Integer, Boolean>();
-    private final ConcurrentHashMap<String, AtomicLong> ordersBySushi = new ConcurrentHashMap<String, AtomicLong>();
-    private final ConcurrentHashMap<Integer, AtomicLong> ordersByHour = new ConcurrentHashMap<Integer, AtomicLong>();
+    private final ConcurrentHashMap<Integer, OrderAnalytics> orders = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, Instant> orderCreatedAt = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, Boolean> orderStarted = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, AtomicLong> ordersBySushi = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, AtomicLong> ordersByHour = new ConcurrentHashMap<>();
 
     private final Instant serverStartTime = Instant.now();
 
@@ -47,12 +47,14 @@ public class AnalyticsService {
         orderCreatedAt.put(orderId, createdInstant);
         addSushiCount(sushiName);
         addHourCount(hour);
+
     }
 
     public void started(int orderId) {
         OrderAnalytics order = orders.get(orderId);
         if (order == null) {
-            return;
+            order = new OrderAnalytics(orderId);
+            orders.put(orderId, order);
         }
 
         order.start();
@@ -61,10 +63,9 @@ public class AnalyticsService {
             Instant createdAt = orderCreatedAt.get(orderId);
             if (createdAt != null) {
                 long waitMillis = Duration.between(createdAt, Instant.now()).toMillis();
-                totalWait.addAndGet(waitMillis);
+                totalWaitMillis.addAndGet(waitMillis);
                 totalOrdersStarted.incrementAndGet();
-                orderStarted.put(orderId, true);
-            }
+                orderStarted.put(orderId, true);}
         }
     }
 
@@ -72,8 +73,7 @@ public class AnalyticsService {
         OrderAnalytics order = orders.get(orderId);
         if (order != null) {
             order.pause();
-        }
-    }
+    }}
 
     public void finished(int orderId) {
         OrderAnalytics order = orders.get(orderId);
@@ -82,15 +82,17 @@ public class AnalyticsService {
         }
 
         order.finish();
-        totalMake.addAndGet(order.getTotalMakeTimeMillis());
+        long makeTime = order.getTotalMakeTimeMillis();
+        totalMakeMillis.addAndGet(makeTime);
         totalOrdersFinished.incrementAndGet();
     }
 
     public void cancelled(int orderId) {
         OrderAnalytics order = orders.get(orderId);
         if (order != null) {
-            order.pause();
+            order.pause(); // just to accumulate any partial time (though we don't use it)
         }
+        orderStarted.remove(orderId);
     }
 
     public AnalyticsResponse getAnalytics() {
@@ -99,15 +101,16 @@ public class AnalyticsService {
 
         double averageWaitTime = 0.0;
         if (startedCount > 0) {
-            averageWaitTime = millisToSeconds(totalWait.get()) / startedCount;
+            averageWaitTime = millisToSeconds(totalWaitMillis.get()) / startedCount;
         }
 
         double averageMakeTime = 0.0;
         if (finishedCount > 0) {
-            averageMakeTime = millisToSeconds(totalMake.get()) / finishedCount;
+            averageMakeTime = millisToSeconds(totalMakeMillis.get()) / finishedCount;
         }
 
         double chefUtilization = calculateChefUtilization();
+
 
         return new AnalyticsResponse(
                 roundOneDecimal(averageWaitTime),
@@ -121,25 +124,11 @@ public class AnalyticsService {
     }
 
     private void addSushiCount(String sushiName) {
-        AtomicLong count = ordersBySushi.get(sushiName);
-
-        if (count == null) {
-            count = new AtomicLong();
-            ordersBySushi.put(sushiName, count);
-        }
-
-        count.incrementAndGet();
+        ordersBySushi.computeIfAbsent(sushiName, k -> new AtomicLong()).incrementAndGet();
     }
 
     private void addHourCount(int hour) {
-        AtomicLong count = ordersByHour.get(hour);
-
-        if (count == null) {
-            count = new AtomicLong();
-            ordersByHour.put(hour, count);
-        }
-
-        count.incrementAndGet();
+        ordersByHour.computeIfAbsent(hour, k -> new AtomicLong()).incrementAndGet();
     }
 
     private double calculateChefUtilization() {

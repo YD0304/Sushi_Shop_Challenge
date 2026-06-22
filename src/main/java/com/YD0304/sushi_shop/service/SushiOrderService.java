@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,9 +18,9 @@ import com.YD0304.sushi_shop.repository.StatusRepository;
 import com.YD0304.sushi_shop.repository.SushiOrderRepository;
 import com.YD0304.sushi_shop.repository.SushiRepository;
 
+
 @Service
 public class SushiOrderService {
-
     private final SushiRepository sushiRepository;
     private final StatusRepository statusRepository;
     private final SushiOrderRepository sushiOrderRepository;
@@ -40,7 +42,7 @@ public class SushiOrderService {
         Sushi sushi = this.sushiRepository.findByName(sushiName)
                 .orElseThrow(() -> new IllegalArgumentException("Sushi not found"));
         Status createdStatus = this.statusRepository.findByName("created")
-                .orElseThrow(() -> new IllegalArgumentException("status not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Status not found"));
 
         SushiOrder sushiOrder = new SushiOrder();
         sushiOrder.setSushi(sushi);
@@ -48,14 +50,12 @@ public class SushiOrderService {
         SushiOrder savedSushiOrder = this.sushiOrderRepository.save(sushiOrder);
         analyticsService.created(savedSushiOrder.getId(), sushi.getName(), savedSushiOrder.getCreatedAt());
 
-        int FIFO_Priority = 1;
-        orderScheduler.enqueue(savedSushiOrder.getId(), FIFO_Priority, this);
+        int FIFO_PRIORITY = 1;
+        orderScheduler.enqueue(savedSushiOrder.getId(), FIFO_PRIORITY, this);
         return savedSushiOrder;
     }
 
-    @Transactional
     public void processSushiOrder(Integer sushiOrderId) {
-
         SushiOrder order = sushiOrderRepository.findById(sushiOrderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
 
@@ -70,21 +70,38 @@ public class SushiOrderService {
             int cookingTimeSeconds = order.getSushi().getTimeToMake();
 
             while (orderScheduler.getTimeSpent(sushiOrderId) < cookingTimeSeconds) {
+                // Refresh order status from the database
+                SushiOrder currentOrder = sushiOrderRepository.findById(sushiOrderId)
+                        .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+                String currentStatus = currentOrder.getStatus().getName();
+
+                if ("cancelled".equals(currentStatus) || "finished".equals(currentStatus)) {
+                    return; // order was cancelled or already finished – stop processing
+                }
+                if ("paused".equals(currentStatus)) {
+                    // Yield CPU; will re-check status after a short sleep
+                    Thread.sleep(100L);
+                    continue; // do not increment time
+                }
+
+                // Not paused or cancelled
                 Thread.sleep(1000L);
                 orderScheduler.incrementTimeSpent(sushiOrderId);
             }
 
-            SushiOrder currentOrder = sushiOrderRepository.findById(sushiOrderId)
+            // Only mark finished if still in-progress (not cancelled/paused mid-flight)
+            SushiOrder finalOrder = sushiOrderRepository.findById(sushiOrderId)
                     .orElseThrow(() -> new IllegalArgumentException("Order not found"));
-            if ("in-progress".equals(currentOrder.getStatus().getName())) {
+            if ("in-progress".equals(finalOrder.getStatus().getName())) {
                 changeSushiOrderStatus(sushiOrderId, "finished");
-                analyticsService.finished(sushiOrderId);
-            }
-
+                analyticsService.finished(sushiOrderId);}
+     
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
+
+        
 
     @Transactional
     public SushiOrder changeSushiOrderStatus(Integer orderId, String statusName) {
@@ -93,54 +110,48 @@ public class SushiOrderService {
         Status newStatus = this.statusRepository.findByName(statusName)
                 .orElseThrow(() -> new IllegalArgumentException("Status not found"));
         sushiOrder.setStatus(newStatus);
-
         return this.sushiOrderRepository.save(sushiOrder);
     }
 
+ 
     @Transactional
-public void cancelSushiOrder(Integer orderId) {
-    SushiOrder order = sushiOrderRepository.findById(orderId)
-            .orElseThrow(() -> new IllegalArgumentException("Order not found"));
-
-    String status = order.getStatus().getName();
-    if ("cancelled".equals(status) || "finished".equals(status)) {
-        throw new IllegalStateException("Cannot cancel an order with status: " + status);
+    public void cancelSushiOrder(Integer orderId) {
+        SushiOrder order = sushiOrderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        String currentStatus = order.getStatus().getName();
+        if ("finished".equals(currentStatus) || "cancelled".equals(currentStatus)) {
+            throw new IllegalStateException("Order cannot be cancelled from status: " + currentStatus);
+        }
+        orderScheduler.cancel(orderId);
+        changeSushiOrderStatus(orderId, "cancelled");
+        analyticsService.cancelled(orderId);
     }
 
-    orderScheduler.cancel(orderId);
-    changeSushiOrderStatus(orderId, "cancelled");
-    analyticsService.cancelled(orderId);
-}
-
-@Transactional
-public void pauseSushiOrder(Integer orderId) {
-    SushiOrder order = sushiOrderRepository.findById(orderId)
-            .orElseThrow(() -> new IllegalArgumentException("Order not found"));
-
-    String status = order.getStatus().getName();
-    if (!"in-progress".equals(status)) {
-        throw new IllegalStateException("Can only pause an in-progress order, current status: " + status);
+  
+    @Transactional
+    public void pauseSushiOrder(Integer orderId) {
+        SushiOrder order = sushiOrderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        if (!"in-progress".equals(order.getStatus().getName())) {
+            throw new IllegalStateException("Only in-progress orders can be paused");
+        }
+        orderScheduler.pause(orderId);
+        changeSushiOrderStatus(orderId, "paused");
+        analyticsService.paused(orderId);
     }
 
-    orderScheduler.pause(orderId);
-    changeSushiOrderStatus(orderId, "paused");
-    analyticsService.paused(orderId);
-}
-
-@Transactional
-public void resumeSushiOrder(int orderId) {
-    SushiOrder order = sushiOrderRepository.findById(orderId)
-            .orElseThrow(() -> new IllegalArgumentException("Order not found"));
-
-    String status = order.getStatus().getName();
-    if (!"paused".equals(status)) {
-        throw new IllegalStateException("Can only resume a paused order, current status: " + status);
+    @Transactional
+    public void resumeSushiOrder(int orderId) {
+        SushiOrder order = sushiOrderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        if (!"paused".equals(order.getStatus().getName())) {
+            throw new IllegalStateException("Only paused orders can be resumed");
+        }
+      
+        changeSushiOrderStatus(orderId, "created");
+        int HIGH_PRIORITY = 0;
+        orderScheduler.enqueue(orderId, HIGH_PRIORITY, this);
     }
-
-    changeSushiOrderStatus(orderId, "in-progress"); // resume means it's active again
-    int highPriority = 0;
-    orderScheduler.enqueue(orderId, highPriority, this);
-}
 
     public Map<String, List<OrderStatusResponse>> getOrdersGroupedByStatus() {
         List<SushiOrder> allOrders = sushiOrderRepository.findAll();
@@ -169,7 +180,6 @@ public void resumeSushiOrder(int orderId) {
     }
 
     private boolean canProcess(SushiOrder order) {
-    String s = order.getStatus().getName();
-    return "created".equals(s) || "in-progress".equals(s);
-}
+        return "created".equals(order.getStatus().getName());
+    }
 }

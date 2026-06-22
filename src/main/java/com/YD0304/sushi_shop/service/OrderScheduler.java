@@ -22,8 +22,7 @@ public class OrderScheduler {
     private final AtomicInteger orderSequence = new AtomicInteger();
 
     public OrderScheduler() {
-        // Pass the queue explicitly so the executor actually uses priority ordering.
-        // With core==max, tasks that arrive while all threads are busy queue here.
+
         this.executor = new ThreadPoolExecutor(
             CHEF_COUNT, CHEF_COUNT, 0L, TimeUnit.MILLISECONDS, queue
         );
@@ -42,12 +41,10 @@ public class OrderScheduler {
 
     public void cancel(int orderId) {
         stop(orderId);
-        // Status change is handled by the caller (SushiOrderService)
     }
 
     public void pause(int orderId) {
         stop(orderId);
-        // Status change is handled by the caller (SushiOrderService)
     }
 
     public int getTimeSpent(int orderId) {

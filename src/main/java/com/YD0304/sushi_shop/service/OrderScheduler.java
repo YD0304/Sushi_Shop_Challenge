@@ -1,11 +1,14 @@
 package com.YD0304.sushi_shop.service;
 
-import org.springframework.stereotype.Component;
-
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.springframework.context.annotation.Lazy;
+
+import org.springframework.stereotype.Component;
 
 @Component
 public class OrderScheduler {
@@ -14,7 +17,8 @@ public class OrderScheduler {
 
     private final BlockingQueue<Runnable> queue = new PriorityBlockingQueue<>();
     private final ThreadPoolExecutor executor;
-    private final Map<Integer, Future<?>> tasks = new ConcurrentHashMap<>();
+    private final Map<Integer, OrderTask> tasks = new ConcurrentHashMap<>();
+    private final Map<Integer, AtomicInteger> timeSpentByOrder = new ConcurrentHashMap<>();
     private final AtomicInteger orderSequence = new AtomicInteger();
 
     public OrderScheduler() {
@@ -27,21 +31,44 @@ public class OrderScheduler {
 
     public void enqueue(int orderId, int priority, SushiOrderService service) {
         int seq = orderSequence.getAndIncrement();
-        OrderTask task = new OrderTask(orderId, priority, seq);
-        Future<?> future = executor.submit(task);
-        tasks.put(orderId, future);
+        OrderTask task = new OrderTask(orderId, priority, seq, service, this);
+        OrderTask existingTask = tasks.put(orderId, task);
+        if (existingTask != null) {
+            executor.remove(existingTask);
+            existingTask.interrupt();
+        }
+        executor.execute(task);
     }
 
     public void cancel(int orderId) {
-        Future<?> future = tasks.remove(orderId);
-        if (future != null) future.cancel(true);
+        stop(orderId);
         // Status change is handled by the caller (SushiOrderService)
     }
 
     public void pause(int orderId) {
-        Future<?> future = tasks.remove(orderId);
-        if (future != null) future.cancel(true);
+        stop(orderId);
         // Status change is handled by the caller (SushiOrderService)
+    }
+
+    public int getTimeSpent(int orderId) {
+        return timeSpentByOrder.computeIfAbsent(orderId, ignored -> new AtomicInteger()).get();
+    }
+
+    public int incrementTimeSpent(int orderId) {
+        return timeSpentByOrder.computeIfAbsent(orderId, ignored -> new AtomicInteger()).incrementAndGet();
+    }
+
+    void taskFinished(int orderId, OrderTask task) {
+        tasks.remove(orderId, task);
+    }
+
+    private void stop(int orderId) {
+        OrderTask task = tasks.remove(orderId);
+        if (task == null) {
+            return;
+        }
+        executor.remove(task);
+        task.interrupt();
     }
 
     public void shutdown() {

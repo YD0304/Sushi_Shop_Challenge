@@ -1,22 +1,23 @@
 package com.YD0304.sushi_shop.service;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.YD0304.sushi_shop.dto.OrderStatusResponse;
 import com.YD0304.sushi_shop.entity.Status;
 import com.YD0304.sushi_shop.entity.Sushi;
 import com.YD0304.sushi_shop.entity.SushiOrder;
-import com.YD0304.sushi_shop.dto.OrderStatusDto;
 import com.YD0304.sushi_shop.repository.StatusRepository;
 import com.YD0304.sushi_shop.repository.SushiOrderRepository;
 import com.YD0304.sushi_shop.repository.SushiRepository;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 @Service
 public class SushiOrderService {
 
-    private SushiOrderService self;
     private final SushiRepository sushiRepository;
     private final StatusRepository statusRepository;
     private final SushiOrderRepository sushiOrderRepository;
@@ -52,23 +53,27 @@ public class SushiOrderService {
         SushiOrder order = sushiOrderRepository.findById(sushiOrderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
 
-        if (isTerminal(order)) {
+        if (!canProcess(order)) {
             return;
         }
 
         changeSushiOrderStatus(sushiOrderId, "in-progress");
 
         try {
-            long cookingTime = order.getSushi().getTimeToMake() * 1000L;
+            int cookingTimeSeconds = order.getSushi().getTimeToMake();
 
-            Thread.sleep(cookingTime); // executor thread handles this
+            while (orderScheduler.getTimeSpent(sushiOrderId) < cookingTimeSeconds) {
+                Thread.sleep(1000L);
+                orderScheduler.incrementTimeSpent(sushiOrderId);
+            }
 
-            changeSushiOrderStatus(sushiOrderId, "finished");
+            SushiOrder currentOrder = sushiOrderRepository.findById(sushiOrderId)
+                    .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+            if ("in-progress".equals(currentOrder.getStatus().getName())) {
+                changeSushiOrderStatus(sushiOrderId, "finished");
+            }
 
         } catch (InterruptedException e) {
-
-            changeSushiOrderStatus(sushiOrderId, "paused");
-
             Thread.currentThread().interrupt();
         }
     }
@@ -104,24 +109,29 @@ public class SushiOrderService {
 
     }
 
-    // @Transactional
-    // public Map<String, List<OrderStatusDto>> getOrdersByStatus() {
-    //     Map<String, List<OrderStatusDto>> result = new LinkedHashMap<>();
+    public Map<String, List<OrderStatusResponse>> getOrdersGroupedByStatus() {
+        List<SushiOrder> allOrders = sushiOrderRepository.findAll();
+        return allOrders.stream()
+            .collect(Collectors.groupingBy(
+                order -> order.getStatus().getName(),
+                Collectors.mapping(order -> {
+                    OrderStatusResponse dto = new OrderStatusResponse();
+                    dto.setOrderId(order.getId());
+                    dto.setTimeSpent(orderScheduler.getTimeSpent(order.getId()));
+                    return dto;
+                }, Collectors.toList())
+            ));
+    }
 
-    //     for (SushiOrder order : this.sushiOrderRepository.findAll()) {
-    //         String displayStatus = updateStatusName(order.getStatus().getName());
-    //         OrderStatusDto dto = new OrderStatusDto(order.getId(), calculateTimeSpent(order));
-    //         result.computeIfAbsent(displayStatus, key -> new ArrayList<>()).add(dto);
-    //     }
-    //     return result;
-    // }
+    public int getTimeSpent(Integer orderId) {
+        return orderScheduler.getTimeSpent(orderId);
+    }
 
     private String updateStatusName(String statusName) {
         return "finished".equals(statusName) ? "completed" : statusName;
     }
 
-    private boolean isTerminal(SushiOrder order) {
-        String status = order.getStatus().getName();
-        return "cancelled".equals(status) || "finished".equals(status);
+    private boolean canProcess(SushiOrder order) {
+        return "created".equals(order.getStatus().getName());
     }
 }

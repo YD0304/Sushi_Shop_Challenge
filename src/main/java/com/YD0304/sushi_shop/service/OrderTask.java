@@ -2,19 +2,31 @@ package com.YD0304.sushi_shop.service;
 
 public class OrderTask implements Runnable, Comparable<OrderTask> {
 
-    private  Integer orderId;
-    private  int priority;
-    private  int sequence;
-    private  SushiOrderService service;
+    private final Integer orderId;
+    private final int priority;
+    private final int sequence;
+    private final SushiOrderService sushiOrderService;
+    private final OrderScheduler orderScheduler;
+    private volatile Thread workerThread;
 
-    public OrderTask(int orderId, int priority, int sequence) {
+    public OrderTask(int orderId, int priority, int sequence, SushiOrderService sushiOrderService,
+            OrderScheduler orderScheduler) {
         this.orderId = orderId;
         this.priority = priority;
         this.sequence = sequence;
+        this.sushiOrderService = sushiOrderService;
+        this.orderScheduler = orderScheduler;
     }
 
     public Integer getOrderId() {
         return orderId;
+    }
+
+    public void interrupt() {
+        Thread thread = workerThread;
+        if (thread != null) {
+            thread.interrupt();
+        }
     }
 
     @Override
@@ -28,6 +40,12 @@ public class OrderTask implements Runnable, Comparable<OrderTask> {
 
     @Override
     public void run() {
-        service.processSushiOrder(orderId);
+        workerThread = Thread.currentThread();
+        try {
+            sushiOrderService.processSushiOrder(orderId);
+        } finally {
+            workerThread = null;
+            orderScheduler.taskFinished(orderId, this);
+        }
     }
 }

@@ -1,13 +1,13 @@
 package com.YD0304.sushi_shop.dto;
 
-public class OrderStatusDto {
+public class OrderStatusResponse {
     private int orderId;
     private int timeSpent;
     
-    public OrderStatusDto() {
+    public OrderStatusResponse() {
     }
     
-    public OrderStatusDto(int orderId, int timeSpent) {
+    public OrderStatusResponse(int orderId, int timeSpent) {
         this.orderId = orderId;
         this.timeSpent = timeSpent;
     }

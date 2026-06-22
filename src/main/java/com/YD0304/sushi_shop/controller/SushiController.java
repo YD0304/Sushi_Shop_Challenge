@@ -1,16 +1,10 @@
 // Source code is decompiled from a .class file using FernFlower decompiler (from Intellij IDEA).
 package com.YD0304.sushi_shop.controller;
 
-import com.YD0304.sushi_shop.dto.OrderResponse;
-import com.YD0304.sushi_shop.dto.StatusResponse;
-import com.YD0304.sushi_shop.dto.OrderStatusDto;
-import com.YD0304.sushi_shop.dto.OrderSummary;
-import com.YD0304.sushi_shop.entity.SushiOrder;
-import com.YD0304.sushi_shop.repository.SushiRepository;
-import com.YD0304.sushi_shop.service.SushiOrderService;
-import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +14,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.YD0304.sushi_shop.dto.OrderResponse;
+import com.YD0304.sushi_shop.dto.OrderStatusResponse;
+import com.YD0304.sushi_shop.dto.OrderSummary;
+import com.YD0304.sushi_shop.dto.StatusResponse;
+import com.YD0304.sushi_shop.entity.SushiOrder;
+import com.YD0304.sushi_shop.repository.SushiRepository;
+import com.YD0304.sushi_shop.service.SushiOrderService;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 @RestController
 public class SushiController {
@@ -85,10 +88,10 @@ public class SushiController {
       }
    }
 
-   // @GetMapping("/api/orders/status")
-   // public ResponseEntity<Map<String, java.util.List<OrderStatusDto>>> getOrdersByStatus() {
-   //    return ResponseEntity.ok(sushiService.getOrdersByStatus());
-   // }
+   @GetMapping("/api/orders/status")
+    public Map<String, List<OrderStatusResponse>> getOrdersByStatus() {
+        return sushiService.getOrdersGroupedByStatus();
+    }
 
    // @GetMapping("/api/orders/analytics")
    // public ResponseEntity<Map<String, Object>> getAnalytics() {

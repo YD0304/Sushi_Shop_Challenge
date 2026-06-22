@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.YD0304.sushi_shop.dto.AnalyticsResponse;
 import com.YD0304.sushi_shop.dto.OrderStatusResponse;
 import com.YD0304.sushi_shop.entity.Status;
 import com.YD0304.sushi_shop.entity.Sushi;
@@ -22,12 +23,16 @@ public class SushiOrderService {
     private final StatusRepository statusRepository;
     private final SushiOrderRepository sushiOrderRepository;
     private final OrderScheduler orderScheduler;
+    private final AnalyticsService analyticsService;
 
-    public SushiOrderService(SushiRepository sushiRepository, StatusRepository statusRepository, SushiOrderRepository sushiOrderRepository, OrderScheduler orderScheduler) {
+    public SushiOrderService(SushiRepository sushiRepository, StatusRepository statusRepository,
+            SushiOrderRepository sushiOrderRepository, OrderScheduler orderScheduler,
+            AnalyticsService analyticsService) {
         this.sushiRepository = sushiRepository;
         this.statusRepository = statusRepository;
         this.sushiOrderRepository = sushiOrderRepository;
         this.orderScheduler = orderScheduler;
+        this.analyticsService = analyticsService;
     }
 
     @Transactional
@@ -41,6 +46,7 @@ public class SushiOrderService {
         sushiOrder.setSushi(sushi);
         sushiOrder.setStatus(createdStatus);
         SushiOrder savedSushiOrder = this.sushiOrderRepository.save(sushiOrder);
+        analyticsService.created(savedSushiOrder.getId(), sushi.getName(), savedSushiOrder.getCreatedAt());
 
         int FIFO_Priority = 1;
         orderScheduler.enqueue(savedSushiOrder.getId(), FIFO_Priority, this);
@@ -58,6 +64,7 @@ public class SushiOrderService {
         }
 
         changeSushiOrderStatus(sushiOrderId, "in-progress");
+        analyticsService.started(sushiOrderId);
 
         try {
             int cookingTimeSeconds = order.getSushi().getTimeToMake();
@@ -71,6 +78,7 @@ public class SushiOrderService {
                     .orElseThrow(() -> new IllegalArgumentException("Order not found"));
             if ("in-progress".equals(currentOrder.getStatus().getName())) {
                 changeSushiOrderStatus(sushiOrderId, "finished");
+                analyticsService.finished(sushiOrderId);
             }
 
         } catch (InterruptedException e) {
@@ -93,12 +101,14 @@ public class SushiOrderService {
     public void cancelSushiOrder(Integer orderId) {
         orderScheduler.cancel(orderId);
         changeSushiOrderStatus(orderId, "cancelled");
+        analyticsService.cancelled(orderId);
     }
 
     @Transactional
     public void pauseSushiOrder(Integer orderId) {
         orderScheduler.pause(orderId);
         changeSushiOrderStatus(orderId, "paused");
+        analyticsService.paused(orderId);
     }
 
     @Transactional
@@ -125,6 +135,10 @@ public class SushiOrderService {
 
     public int getTimeSpent(Integer orderId) {
         return orderScheduler.getTimeSpent(orderId);
+    }
+
+    public AnalyticsResponse getAnalytics() {
+        return analyticsService.getAnalytics();
     }
 
     private String updateStatusName(String statusName) {

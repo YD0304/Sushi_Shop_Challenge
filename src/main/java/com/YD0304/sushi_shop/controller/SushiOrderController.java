@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.YD0304.sushi_shop.dto.AnalyticsResponse;
 import com.YD0304.sushi_shop.dto.OrderResponse;
 import com.YD0304.sushi_shop.dto.OrderStatusResponse;
 import com.YD0304.sushi_shop.dto.OrderSummary;
@@ -25,10 +26,10 @@ import com.YD0304.sushi_shop.service.SushiOrderService;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 @RestController
-public class SushiController {
+public class SushiOrderController {
    private final SushiOrderService sushiService;
 
-   public SushiController(SushiOrderService sushiService, SushiRepository sushiRepository, ParameterNamesModule parameterNamesModule) {
+   public SushiOrderController(SushiOrderService sushiService, SushiRepository sushiRepository, ParameterNamesModule parameterNamesModule) {
       this.sushiService = sushiService;
    }
 
@@ -93,14 +94,10 @@ public class SushiController {
         return sushiService.getOrdersGroupedByStatus();
     }
 
-   // @GetMapping("/api/orders/analytics")
-   // public ResponseEntity<Map<String, Object>> getAnalytics() {
-   //    try {
-   //       return ResponseEntity.ok(sushiService.getAnalytics());
-   //    } catch (Exception e) {
-   //       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-   //    }
-   // }
+   @GetMapping("/api/orders/analytics")
+   public ResponseEntity<AnalyticsResponse> getAnalytics() {
+      return ResponseEntity.ok(sushiService.getAnalytics());
+   }
 
    @GetMapping({"/test"})
    public String test() {

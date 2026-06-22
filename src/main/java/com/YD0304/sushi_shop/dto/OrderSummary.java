@@ -1,15 +1,14 @@
 package com.YD0304.sushi_shop.dto;
 
-import com.YD0304.sushi_shop.entity.SushiOrder;
+import java.time.Instant;
 
-import java.time.ZoneId;
-import java.time.LocalDateTime;
+import com.YD0304.sushi_shop.entity.SushiOrder;
 
 public class OrderSummary {
     private int id;
     private int statusId;
     private int sushiId;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public OrderSummary(SushiOrder order) {
         this.id = order.getId();
@@ -21,5 +20,5 @@ public class OrderSummary {
     public int getId() { return id; }
     public int getStatusId() { return statusId; }
     public int getSushiId() { return sushiId; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public Instant getCreatedAt() { return createdAt; }
 }

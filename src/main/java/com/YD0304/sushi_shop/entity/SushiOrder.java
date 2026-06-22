@@ -1,11 +1,17 @@
 package com.YD0304.sushi_shop.entity;
 
-import jakarta.persistence.*;
-import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "sushi_order")
@@ -25,7 +31,7 @@ public class SushiOrder {
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public SushiOrder() {
     }
@@ -33,7 +39,7 @@ public class SushiOrder {
     public SushiOrder(Status status, Sushi sushi) {
         this.status = status;
         this.sushi = sushi;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 
     public Integer getId() {
@@ -60,11 +66,11 @@ public class SushiOrder {
         this.sushi = sushi;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 

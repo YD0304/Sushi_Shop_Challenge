@@ -18,8 +18,8 @@ public class AnalyticsService {
 
     private static final int CHEF_COUNT = 3;
 
-    private final AtomicLong totalWaitMillis = new AtomicLong();
-    private final AtomicLong totalMakeMillis = new AtomicLong();
+    private final AtomicLong totalWait = new AtomicLong();
+    private final AtomicLong totalMake = new AtomicLong();
     private final AtomicLong totalOrdersStarted = new AtomicLong();
     private final AtomicLong totalOrdersFinished = new AtomicLong();
 
@@ -61,7 +61,7 @@ public class AnalyticsService {
             Instant createdAt = orderCreatedAt.get(orderId);
             if (createdAt != null) {
                 long waitMillis = Duration.between(createdAt, Instant.now()).toMillis();
-                totalWaitMillis.addAndGet(waitMillis);
+                totalWait.addAndGet(waitMillis);
                 totalOrdersStarted.incrementAndGet();
                 orderStarted.put(orderId, true);
             }
@@ -82,7 +82,7 @@ public class AnalyticsService {
         }
 
         order.finish();
-        totalMakeMillis.addAndGet(order.getTotalMakeTimeMillis());
+        totalMake.addAndGet(order.getTotalMakeTimeMillis());
         totalOrdersFinished.incrementAndGet();
     }
 
@@ -99,12 +99,12 @@ public class AnalyticsService {
 
         double averageWaitTime = 0.0;
         if (startedCount > 0) {
-            averageWaitTime = millisToSeconds(totalWaitMillis.get()) / startedCount;
+            averageWaitTime = millisToSeconds(totalWait.get()) / startedCount;
         }
 
         double averageMakeTime = 0.0;
         if (finishedCount > 0) {
-            averageMakeTime = millisToSeconds(totalMakeMillis.get()) / finishedCount;
+            averageMakeTime = millisToSeconds(totalMake.get()) / finishedCount;
         }
 
         double chefUtilization = calculateChefUtilization();

@@ -79,7 +79,6 @@ public class SushiOrderService {
                     return; // order was cancelled or already finished – stop processing
                 }
                 if ("paused".equals(currentStatus)) {
-                    // Yield CPU; will re-check status after a short sleep
                     Thread.sleep(100L);
                     continue; // do not increment time
                 }

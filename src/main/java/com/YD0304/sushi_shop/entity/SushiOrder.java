@@ -1,6 +1,7 @@
 package com.YD0304.sushi_shop.entity;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 

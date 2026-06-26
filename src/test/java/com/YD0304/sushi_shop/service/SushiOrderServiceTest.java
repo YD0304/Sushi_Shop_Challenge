@@ -1,5 +1,28 @@
 package com.YD0304.sushi_shop.service;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.YD0304.sushi_shop.dto.OrderStatusResponse;
 import com.YD0304.sushi_shop.entity.Status;
 import com.YD0304.sushi_shop.entity.Sushi;
@@ -7,36 +30,6 @@ import com.YD0304.sushi_shop.entity.SushiOrder;
 import com.YD0304.sushi_shop.repository.StatusRepository;
 import com.YD0304.sushi_shop.repository.SushiOrderRepository;
 import com.YD0304.sushi_shop.repository.SushiRepository;
-import com.YD0304.sushi_shop.service.SushiOrderService;
-import com.YD0304.sushi_shop.service.AnalyticsService;
-import com.YD0304.sushi_shop.service.OrderScheduler;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-
-import java.time.Instant;
-import java.util.Map;
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 
 /*Arrange: Set up the test data, create objects, 
@@ -398,34 +391,43 @@ void getOrdersGroupedByStatus_Sucess_EmptyRepo(){
 
 
 @Test
-void processSushiOrder_normalCompletion() throws Exception {
+void processSushiOrder_normalCompletion() {
     // Arrange
     Sushi sushi = createSushi("California Roll", 30);
     Status created = createStatus("created");
     Status inProgress = createStatus("in-progress");
     Status finished = createStatus("finished");
 
-    SushiOrder firstOrder = createOrder(1, sushi, created);
-    SushiOrder secondOrder = createOrder(2, sushi, inProgress);
+    //life cycle
+    SushiOrder orderCreated = createOrder(1, sushi, created);
+    SushiOrder orderInProgress = createOrder(1, sushi, inProgress);
+    SushiOrder orderAlmostFinish = createOrder(1, sushi, inProgress);
 
-    when(sushiOrderRepository.findById(1)).thenReturn(Optional.of(firstOrder));
-    when(statusRepository.findByName("in-progress")).thenReturn(Optional.of(inProgress));
-    when(statusRepository.findByName("finished")).thenReturn(Optional.of(finished));
+    when(sushiOrderRepository.findById(1)).thenReturn(Optional.of(orderCreated))
+    .thenReturn(Optional.of(orderInProgress))
+    .thenReturn(Optional.of(orderAlmostFinish));
 
 
     when(orderScheduler.getTimeSpent(1))
-        .thenReturn(0, 1, 2, 3);
-    // Stub incrementTimeSpent to do nothing (or we can just verify it was called)
-    doNothing().when(orderScheduler).incrementTimeSpent(1);
+    .thenReturn(0)   // 1st check: 0 < 30 → enter loop
+    .thenReturn(1); // 2nd check: 30 < 30 → exit loop
 
+    when(statusRepository.findByName("in-progress")).thenReturn(Optional.of(inProgress));
+when(statusRepository.findByName("finished")).thenReturn(Optional.of(finished));
+when(sushiOrderRepository.save(any(SushiOrder.class))).thenAnswer(i -> i.getArgument(0));
+            
     // Act
     sushiOrderService.processSushiOrder(1);
 
     // Assert
+    verify(sushiOrderRepository, times(3)).findById(1);
+    verify(orderScheduler, times(2)).getTimeSpent(1); // called twice
+    verify(orderScheduler).incrementTimeSpent(1);     // called once inside loop
+    verify(sushiOrderService.changeSushiOrderStatus(1, "in-progress"));
+    verify(sushiOrderService.changeSushiOrderStatus(1, "finished"));
     verify(analyticsService).started(1);
     verify(analyticsService).finished(1);
-    verify(orderScheduler, times(3)).incrementTimeSpent(1);
-    verify(sushiOrderRepository, atLeast(1)).save(any()); // status changed to finished
+
 }
 
 }

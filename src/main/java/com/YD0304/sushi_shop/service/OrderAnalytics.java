@@ -20,7 +20,6 @@ class OrderAnalytics {
 
     synchronized void start() {
         if (inProgressStart != null) {
-            // This shouldn't happen if paused correctly, but we'll accumulate just in case.
             long elapsed = Duration.between(inProgressStart, Instant.now()).toMillis();
             totalMakeTimeMillis += elapsed;
         }

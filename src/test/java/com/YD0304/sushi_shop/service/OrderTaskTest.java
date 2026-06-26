@@ -1,85 +1,52 @@
 package com.YD0304.sushi_shop.service;
 
-import com.YD0304.sushi_shop.dto.OrderStatusResponse;
-import com.YD0304.sushi_shop.entity.Status;
-import com.YD0304.sushi_shop.entity.Sushi;
-import com.YD0304.sushi_shop.entity.SushiOrder;
-import com.YD0304.sushi_shop.repository.StatusRepository;
-import com.YD0304.sushi_shop.repository.SushiOrderRepository;
-import com.YD0304.sushi_shop.repository.SushiRepository;
-import com.YD0304.sushi_shop.service.SushiOrderService;
-import com.YD0304.sushi_shop.service.AnalyticsService;
-import com.YD0304.sushi_shop.service.OrderScheduler;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
-import java.time.Instant;
-import java.util.Map;
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
+public class OrderTaskTest {
+     @Mock private SushiOrderService sushiOrderService;
+     @Mock private OrderScheduler scheduler;     
 
-class OrderSchedulerTest {
- 
-    @Mock private SushiOrderService sushiOrderService;
- 
-    private OrderScheduler scheduler;
- 
-    @BeforeEach
-    void setUp() {
-        scheduler = new OrderScheduler();
-    }
- 
-    @AfterEach
-    void shutdown() {
-        scheduler.shutdown();
-    }
+    
+     @Test
+     void compareTo_resumedOrder(){
+    OrderTask t1 = new OrderTask(1, 1, 10, sushiOrderService, scheduler);
+    OrderTask t2 = new OrderTask(2, 0, 5, sushiOrderService, scheduler);
 
-    @Test
-    void getTimeSpent_unknownOrder_returnsZero() {
-        assertEquals(0, scheduler.getTimeSpent(999));
-    }
- 
-    @Test
-    void incrementTimeSpent_startsFromZeroAndIncrementsEachCall() {
-        assertEquals(1, scheduler.incrementTimeSpent(1));
-        assertEquals(2, scheduler.incrementTimeSpent(1));
-        assertEquals(3, scheduler.incrementTimeSpent(1));
-    }
- 
-    @Test
-    void getTimeSpent_reflectsIncrements() {
-        scheduler.incrementTimeSpent(5);
-        scheduler.incrementTimeSpent(5);
-        assertEquals(2, scheduler.getTimeSpent(5));
-    }
- 
-    @Test
-    void incrementTimeSpent_differentOrders_trackedIndependently() {
-        scheduler.incrementTimeSpent(1);
-        scheduler.incrementTimeSpent(1);
-        scheduler.incrementTimeSpent(2);
- 
-        assertEquals(2, scheduler.getTimeSpent(1));
-        assertEquals(1, scheduler.getTimeSpent(2));
-    }
+    //task 2 has lower priority
+    assertTrue(t1.compareTo(t2) > 0);
+}
 
+void compareTo_samePriorityUsesSequence() {
+    OrderTask t1 = new OrderTask(1, 1, 1, sushiOrderService, scheduler);
+    OrderTask t2 = new OrderTask(2, 1, 2, sushiOrderService, scheduler);
 
+    //same priority FIFO
+    assertTrue(t1.compareTo(t2) < 0);
+}
+@Test
+void interrupt(){
+    OrderTask task = new OrderTask(1, 1, 1, sushiOrderService, scheduler);
+    assertDoesNotThrow(task::interrupt);
+}
+
+@Test
+void run(){
+
+    OrderTask task = new OrderTask(1, 1, 1, sushiOrderService, scheduler);
+
+    task.run();
+
+    verify(sushiOrderService).processSushiOrder(1);
+    verify(scheduler).taskFinished(eq(1), any(OrderTask.class));
+}
 }

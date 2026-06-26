@@ -400,22 +400,19 @@ void getOrdersGroupedByStatus_Sucess_EmptyRepo(){
 @Test
 void processSushiOrder_normalCompletion() throws Exception {
     // Arrange
-    Sushi sushi = new Sushi();
-    sushi.setTimeToMake(3); // cooking time = 3 seconds
-    Status created = new Status("created");
-    Status inProgress = new Status("in-progress");
-    Status finished = new Status("finished");
-    SushiOrder order = new SushiOrder();
-    order.setId(1);
-    order.setSushi(sushi);
-    order.setStatus(created);
+    Sushi sushi = createSushi("California Roll", 30);
+    Status created = createStatus("created");
+    Status inProgress = createStatus("in-progress");
+    Status finished = createStatus("finished");
 
-    // Stub repository to return the order
-    when(sushiOrderRepository.findById(1)).thenReturn(Optional.of(order));
+    SushiOrder firstOrder = createOrder(1, sushi, created);
+    SushiOrder secondOrder = createOrder(2, sushi, inProgress);
+
+    when(sushiOrderRepository.findById(1)).thenReturn(Optional.of(firstOrder));
     when(statusRepository.findByName("in-progress")).thenReturn(Optional.of(inProgress));
     when(statusRepository.findByName("finished")).thenReturn(Optional.of(finished));
 
-    // Stub timeSpent: initially 0, then 1, 2, 3 (so loop runs 3 times)
+
     when(orderScheduler.getTimeSpent(1))
         .thenReturn(0, 1, 2, 3);
     // Stub incrementTimeSpent to do nothing (or we can just verify it was called)

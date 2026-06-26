@@ -17,6 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -33,11 +36,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class OrderSchedulerTest {
  
     @Mock private SushiOrderService sushiOrderService;
  
+    @Mock
     private OrderScheduler scheduler;
  
     @BeforeEach
@@ -71,5 +77,46 @@ class OrderSchedulerTest {
         assertEquals(2, scheduler.getTimeSpent(1));
         assertEquals(1, scheduler.getTimeSpent(2));
     }
+
+    @Test
+    void enqueue(){
+        scheduler.enqueue(1, 0, sushiOrderService);
+
+        verify(sushiOrderService, timeout(1000)).processSushiOrder(1);
+    }
+
+    @Test
+    void enqueue_replace(){
+
+        scheduler.enqueue(1, 1, sushiOrderService);
+        scheduler.enqueue(1, 0, sushiOrderService);
+
+        verify(sushiOrderService, timeout(1000).atLeastOnce()).processSushiOrder(1);
+    }
+
+    @Test
+    void stop(){
+        scheduler.enqueue(1, 1, sushiOrderService);
+        scheduler.cancel(1);
+
+        verify(sushiOrderService, after(500).atMostOnce())
+        .processSushiOrder(1);
+}
+
+
+    @Test
+    void taskFinished(){
+        OrderTask task = new OrderTask(1, 1, 3, sushiOrderService, scheduler);
+        scheduler.enqueue(1, 1, sushiOrderService);
+        scheduler.taskFinished(1, task);
+
+        verify(sushiOrderService, after(500).atMostOnce())
+        .processSushiOrder(1);
+
+    }
+
+    
+    
+
 
 }

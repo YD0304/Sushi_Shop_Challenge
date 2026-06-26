@@ -181,4 +181,5 @@ public class SushiOrderService {
     private boolean canProcess(SushiOrder order) {
         return "created".equals(order.getStatus().getName());
     }
+    
 }

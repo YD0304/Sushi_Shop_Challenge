@@ -2,7 +2,6 @@ package com.YD0304.sushi_shop.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,5 +49,6 @@ public class OrderAnalyticsTest {
         long time = analytic.getTotalMakeTimeMillis();
         assertTrue(time >= 1000);
     }
+
     
 }

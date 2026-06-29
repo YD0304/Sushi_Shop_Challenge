@@ -1,41 +1,17 @@
 package com.YD0304.sushi_shop.service;
 
-import com.YD0304.sushi_shop.dto.OrderStatusResponse;
-import com.YD0304.sushi_shop.entity.Status;
-import com.YD0304.sushi_shop.entity.Sushi;
-import com.YD0304.sushi_shop.entity.SushiOrder;
-import com.YD0304.sushi_shop.repository.StatusRepository;
-import com.YD0304.sushi_shop.repository.SushiOrderRepository;
-import com.YD0304.sushi_shop.repository.SushiRepository;
-import com.YD0304.sushi_shop.service.SushiOrderService;
-import com.YD0304.sushi_shop.service.AnalyticsService;
-import com.YD0304.sushi_shop.service.OrderScheduler;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.after;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-
-import java.time.Instant;
-import java.util.Map;
-import java.util.List;
-import java.util.Optional;
+import java.util.concurrent.RejectedExecutionException;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -115,8 +91,15 @@ class OrderSchedulerTest {
 
     }
 
-    
-    
+    @Test
+    void shutdownTest(){
+    scheduler.shutdown();
 
-
+    // After shutdown, enqueue should reject new tasks
+    assertThrows(RejectedExecutionException.class, () -> 
+        scheduler.enqueue(1, 1, sushiOrderService)
+    );
 }
+}
+
+    
